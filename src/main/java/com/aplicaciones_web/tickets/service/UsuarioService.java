@@ -3,8 +3,11 @@ package com.aplicaciones_web.tickets.service;
 import com.aplicaciones_web.tickets.dto.request.UsuarioRequestDTO;
 import com.aplicaciones_web.tickets.dto.response.UsuarioResponseDTO;
 import com.aplicaciones_web.tickets.entity.Usuario;
+import com.aplicaciones_web.tickets.exception.ResourceNotFoundException;
 import com.aplicaciones_web.tickets.repository.UsuarioRepository;
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -12,52 +15,46 @@ import java.util.List;
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final ModelMapper modelMapper;
 
-    public UsuarioService(UsuarioRepository usuarioRepository) {
+    public UsuarioService(UsuarioRepository usuarioRepository, ModelMapper modelMapper) {
         this.usuarioRepository = usuarioRepository;
+        this.modelMapper = modelMapper;
     }
 
+    @Transactional(readOnly = true)
     public List<UsuarioResponseDTO> findAll() {
         return usuarioRepository.findAll()
                 .stream()
-                .map(this::toResponseDTO)
+                .map(usuario -> modelMapper.map(usuario, UsuarioResponseDTO.class))
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public UsuarioResponseDTO findById(Long id) {
-        Usuario usuario = usuarioRepository.findById(id).orElse(null);
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
 
-        if (usuario == null) {
-            return null;
-        }
-
-        return toResponseDTO(usuario);
+        return modelMapper.map(usuario, UsuarioResponseDTO.class);
     }
 
+    @Transactional
     public UsuarioResponseDTO save(UsuarioRequestDTO dto) {
-        Usuario usuario = new Usuario();
+        Usuario usuario = modelMapper.map(dto, Usuario.class);
 
-        usuario.setNombre(dto.getNombre());
-        usuario.setApellido(dto.getApellido());
-        usuario.setEmail(dto.getEmail());
-        usuario.setPassword(dto.getPassword());
-        usuario.setRol(dto.getRol());
-
-        if (dto.getActivo() != null) {
-            usuario.setActivo(dto.getActivo());
+        if (usuario.getActivo() == null) {
+            usuario.setActivo(true);
         }
 
         Usuario usuarioGuardado = usuarioRepository.save(usuario);
 
-        return toResponseDTO(usuarioGuardado);
+        return modelMapper.map(usuarioGuardado, UsuarioResponseDTO.class);
     }
 
+    @Transactional
     public UsuarioResponseDTO update(Long id, UsuarioRequestDTO dto) {
-        Usuario usuarioExistente = usuarioRepository.findById(id).orElse(null);
-
-        if (usuarioExistente == null) {
-            return null;
-        }
+        Usuario usuarioExistente = usuarioRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
 
         usuarioExistente.setNombre(dto.getNombre());
         usuarioExistente.setApellido(dto.getApellido());
@@ -71,26 +68,15 @@ public class UsuarioService {
 
         Usuario usuarioActualizado = usuarioRepository.save(usuarioExistente);
 
-        return toResponseDTO(usuarioActualizado);
+        return modelMapper.map(usuarioActualizado, UsuarioResponseDTO.class);
     }
 
-    public boolean deleteById(Long id) {
+    @Transactional
+    public void deleteById(Long id) {
         if (!usuarioRepository.existsById(id)) {
-            return false;
+            throw new ResourceNotFoundException("Usuario no encontrado con ID: " + id);
         }
 
         usuarioRepository.deleteById(id);
-        return true;
-    }
-
-    private UsuarioResponseDTO toResponseDTO(Usuario usuario) {
-        return new UsuarioResponseDTO(
-                usuario.getId(),
-                usuario.getNombre(),
-                usuario.getApellido(),
-                usuario.getEmail(),
-                usuario.getRol(),
-                usuario.getActivo()
-        );
     }
 }

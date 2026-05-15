@@ -7,10 +7,13 @@ import com.aplicaciones_web.tickets.dto.response.UsuarioResponseDTO;
 import com.aplicaciones_web.tickets.entity.Categoria;
 import com.aplicaciones_web.tickets.entity.Ticket;
 import com.aplicaciones_web.tickets.entity.Usuario;
+import com.aplicaciones_web.tickets.exception.ResourceNotFoundException;
 import com.aplicaciones_web.tickets.repository.CategoriaRepository;
 import com.aplicaciones_web.tickets.repository.TicketRepository;
 import com.aplicaciones_web.tickets.repository.UsuarioRepository;
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -20,15 +23,19 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final UsuarioRepository usuarioRepository;
     private final CategoriaRepository categoriaRepository;
+    private final ModelMapper modelMapper;
 
     public TicketService(TicketRepository ticketRepository,
                          UsuarioRepository usuarioRepository,
-                         CategoriaRepository categoriaRepository) {
+                         CategoriaRepository categoriaRepository,
+                         ModelMapper modelMapper) {
         this.ticketRepository = ticketRepository;
         this.usuarioRepository = usuarioRepository;
         this.categoriaRepository = categoriaRepository;
+        this.modelMapper = modelMapper;
     }
 
+    @Transactional(readOnly = true)
     public List<TicketResponseDTO> findAll() {
         return ticketRepository.findAll()
                 .stream()
@@ -36,39 +43,31 @@ public class TicketService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public TicketResponseDTO findById(Long id) {
-        Ticket ticket = ticketRepository.findById(id).orElse(null);
-
-        if (ticket == null) {
-            return null;
-        }
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket no encontrado con ID: " + id));
 
         return toResponseDTO(ticket);
     }
 
+    @Transactional
     public TicketResponseDTO save(TicketRequestDTO dto) {
-        Usuario usuario = usuarioRepository.findById(dto.getUsuarioId()).orElse(null);
-        Categoria categoria = categoriaRepository.findById(dto.getCategoriaId()).orElse(null);
+        Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + dto.getUsuarioId()));
 
-        if (usuario == null || categoria == null) {
-            return null;
-        }
+        Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con ID: " + dto.getCategoriaId()));
 
         Usuario tecnico = null;
 
         if (dto.getTecnicoId() != null) {
-            tecnico = usuarioRepository.findById(dto.getTecnicoId()).orElse(null);
-
-            if (tecnico == null) {
-                return null;
-            }
+            tecnico = usuarioRepository.findById(dto.getTecnicoId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Técnico no encontrado con ID: " + dto.getTecnicoId()));
         }
 
-        Ticket ticket = new Ticket();
-        ticket.setAsunto(dto.getAsunto());
-        ticket.setDescripcion(dto.getDescripcion());
-        ticket.setPrioridad(dto.getPrioridad());
-        ticket.setEstado(dto.getEstado());
+        Ticket ticket = modelMapper.map(dto, Ticket.class);
+
         ticket.setUsuario(usuario);
         ticket.setTecnico(tecnico);
         ticket.setCategoria(categoria);
@@ -78,28 +77,22 @@ public class TicketService {
         return toResponseDTO(ticketGuardado);
     }
 
+    @Transactional
     public TicketResponseDTO update(Long id, TicketRequestDTO dto) {
-        Ticket ticketExistente = ticketRepository.findById(id).orElse(null);
+        Ticket ticketExistente = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket no encontrado con ID: " + id));
 
-        if (ticketExistente == null) {
-            return null;
-        }
+        Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + dto.getUsuarioId()));
 
-        Usuario usuario = usuarioRepository.findById(dto.getUsuarioId()).orElse(null);
-        Categoria categoria = categoriaRepository.findById(dto.getCategoriaId()).orElse(null);
-
-        if (usuario == null || categoria == null) {
-            return null;
-        }
+        Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con ID: " + dto.getCategoriaId()));
 
         Usuario tecnico = null;
 
         if (dto.getTecnicoId() != null) {
-            tecnico = usuarioRepository.findById(dto.getTecnicoId()).orElse(null);
-
-            if (tecnico == null) {
-                return null;
-            }
+            tecnico = usuarioRepository.findById(dto.getTecnicoId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Técnico no encontrado con ID: " + dto.getTecnicoId()));
         }
 
         ticketExistente.setAsunto(dto.getAsunto());
@@ -115,43 +108,25 @@ public class TicketService {
         return toResponseDTO(ticketActualizado);
     }
 
-    public boolean deleteById(Long id) {
+    @Transactional
+    public void deleteById(Long id) {
         if (!ticketRepository.existsById(id)) {
-            return false;
+            throw new ResourceNotFoundException("Ticket no encontrado con ID: " + id);
         }
 
         ticketRepository.deleteById(id);
-        return true;
     }
 
     private TicketResponseDTO toResponseDTO(Ticket ticket) {
-        UsuarioResponseDTO usuarioDTO = new UsuarioResponseDTO(
-                ticket.getUsuario().getId(),
-                ticket.getUsuario().getNombre(),
-                ticket.getUsuario().getApellido(),
-                ticket.getUsuario().getEmail(),
-                ticket.getUsuario().getRol(),
-                ticket.getUsuario().getActivo()
-        );
+        UsuarioResponseDTO usuarioDTO = modelMapper.map(ticket.getUsuario(), UsuarioResponseDTO.class);
 
         UsuarioResponseDTO tecnicoDTO = null;
 
         if (ticket.getTecnico() != null) {
-            tecnicoDTO = new UsuarioResponseDTO(
-                    ticket.getTecnico().getId(),
-                    ticket.getTecnico().getNombre(),
-                    ticket.getTecnico().getApellido(),
-                    ticket.getTecnico().getEmail(),
-                    ticket.getTecnico().getRol(),
-                    ticket.getTecnico().getActivo()
-            );
+            tecnicoDTO = modelMapper.map(ticket.getTecnico(), UsuarioResponseDTO.class);
         }
 
-        CategoriaResponseDTO categoriaDTO = new CategoriaResponseDTO(
-                ticket.getCategoria().getId(),
-                ticket.getCategoria().getNombre(),
-                ticket.getCategoria().getDescripcion()
-        );
+        CategoriaResponseDTO categoriaDTO = modelMapper.map(ticket.getCategoria(), CategoriaResponseDTO.class);
 
         return new TicketResponseDTO(
                 ticket.getId(),
