@@ -1,5 +1,7 @@
 package com.aplicaciones_web.tickets.entity;
 
+
+import com.aplicaciones_web.tickets.enums.EstadoTicket;
 import com.aplicaciones_web.tickets.enums.PrioridadTicket;
 import jakarta.persistence.*;
 
@@ -41,15 +43,23 @@ public class Ticket {
     @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "estado_id", nullable = false)
-    private Estado estado;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private EstadoTicket estado = EstadoTicket.ABIERTO;
 
     public Ticket() {
     }
 
     @PrePersist
     public void prePersist() {
+        if (this.prioridad == null) {
+            this.prioridad = PrioridadTicket.MEDIA;
+        }
+
+        if (this.estado == null) {
+            this.estado = EstadoTicket.ABIERTO;
+        }
+
         this.fechaCreacion = LocalDateTime.now();
         this.fechaActualizacion = LocalDateTime.now();
     }
@@ -59,98 +69,96 @@ public class Ticket {
         this.fechaActualizacion = LocalDateTime.now();
     }
 
-    public Ticket(Long id, String asunto, String descripcion, PrioridadTicket prioridad,
-                  LocalDateTime fechaCreacion, LocalDateTime fechaActualizacion,
-                  Usuario usuario, Usuario tecnico, Categoria categoria, Estado estado) {
-        this.id = id;
+    public Ticket(String asunto, Categoria categoria, String descripcion, EstadoTicket estado, LocalDateTime fechaActualizacion, LocalDateTime fechaCreacion, Long id, PrioridadTicket prioridad, Usuario tecnico, Usuario usuario) {
         this.asunto = asunto;
-        this.descripcion = descripcion;
-        this.prioridad = prioridad;
-        this.fechaCreacion = fechaCreacion;
-        this.fechaActualizacion = fechaActualizacion;
-        this.usuario = usuario;
-        this.tecnico = tecnico;
         this.categoria = categoria;
+        this.descripcion = descripcion;
         this.estado = estado;
-    }
-
-    public Long getId() {
-        return id;
+        this.fechaActualizacion = fechaActualizacion;
+        this.fechaCreacion = fechaCreacion;
+        this.id = id;
+        this.prioridad = prioridad;
+        this.tecnico = tecnico;
+        this.usuario = usuario;
     }
 
     public String getAsunto() {
         return asunto;
     }
 
-    public String getDescripcion() {
-        return descripcion;
-    }
-
-    public PrioridadTicket getPrioridad() {
-        return prioridad;
-    }
-
-    public LocalDateTime getFechaCreacion() {
-        return fechaCreacion;
-    }
-
-    public LocalDateTime getFechaActualizacion() {
-        return fechaActualizacion;
-    }
-
-    public Usuario getUsuario() {
-        return usuario;
-    }
-
-    public Usuario getTecnico() {
-        return tecnico;
+    public void setAsunto(String asunto) {
+        this.asunto = asunto;
     }
 
     public Categoria getCategoria() {
         return categoria;
     }
 
-    public Estado getEstado() {
-        return estado;
+    public void setCategoria(Categoria categoria) {
+        this.categoria = categoria;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setAsunto(String asunto) {
-        this.asunto = asunto;
+    public String getDescripcion() {
+        return descripcion;
     }
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
     }
 
-    public void setPrioridad(PrioridadTicket prioridad) {
-        this.prioridad = prioridad;
+    public EstadoTicket getEstado() {
+        return estado;
     }
 
-    public void setFechaCreacion(LocalDateTime fechaCreacion) {
-        this.fechaCreacion = fechaCreacion;
+    public void setEstado(EstadoTicket estado) {
+        this.estado = estado;
+    }
+
+    public LocalDateTime getFechaActualizacion() {
+        return fechaActualizacion;
     }
 
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) {
         this.fechaActualizacion = fechaActualizacion;
     }
 
-    public void setUsuario(Usuario usuario) {
-        this.usuario = usuario;
+    public LocalDateTime getFechaCreacion() {
+        return fechaCreacion;
+    }
+
+    public void setFechaCreacion(LocalDateTime fechaCreacion) {
+        this.fechaCreacion = fechaCreacion;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public PrioridadTicket getPrioridad() {
+        return prioridad;
+    }
+
+    public void setPrioridad(PrioridadTicket prioridad) {
+        this.prioridad = prioridad;
+    }
+
+    public Usuario getTecnico() {
+        return tecnico;
     }
 
     public void setTecnico(Usuario tecnico) {
         this.tecnico = tecnico;
     }
 
-    public void setCategoria(Categoria categoria) {
-        this.categoria = categoria;
+    public Usuario getUsuario() {
+        return usuario;
     }
 
-    public void setEstado(Estado estado) {
-        this.estado = estado;
+    public void setUsuario(Usuario usuario) {
+        this.usuario = usuario;
     }
 }
